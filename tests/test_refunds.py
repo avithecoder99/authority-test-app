@@ -18,3 +18,7 @@ def test_zero_or_negative_rejected():
         refund_amount("0")
     with pytest.raises(ValueError):
         refund_amount("-1")
+
+def test_three_decimals_round_half_up():
+    assert refund_amount("10.005") == Decimal("10.01")
+    assert refund_amount("10.004") == Decimal("10.00")
