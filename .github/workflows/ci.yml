@@ -41,3 +41,23 @@ jobs:
         with:
           name: image-digest
           path: image-digest.txt
+  lambda:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package app/ as function.zip (fixed order and timestamps) and state its SHA-256
+        run: |
+          find app -name '*.py' -print | LC_ALL=C sort > files.txt
+          xargs touch -d '2026-01-01T00:00:00Z' < files.txt
+          zip -X -D -q function.zip -@ < files.txt
+          echo "sha256:$(sha256sum function.zip | cut -d' ' -f1)" > lambda-digest.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: function.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lambda-digest
+          path: lambda-digest.txt

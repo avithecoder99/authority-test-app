@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "authority": {
+      "type": "stdio",
+      "command": "E:\\authority\\.venv\\Scripts\\python.exe",
+      "args": [
+        "E:\\authority\\clients\\mcp_server.py"
+      ],
+      "env": {
+        "AAC_URL": "http://127.0.0.1:18001",
+        "AAC_TOKEN_FILE": "E:\\authority-secrets\\copilot.token"
+      }
+    }
+  }
+}
