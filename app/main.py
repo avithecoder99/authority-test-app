@@ -17,6 +17,7 @@ class Handler(BaseHTTPRequestHandler):
             body, status = f"error: {exc}", 400
         self.send_response(status)
         self.send_header("Content-Type", "text/plain")
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body.encode())
 
