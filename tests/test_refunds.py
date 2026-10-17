@@ -22,3 +22,13 @@ def test_zero_or_negative_rejected():
 def test_three_decimals_round_half_up():
     assert refund_amount("10.005") == Decimal("10.01")
     assert refund_amount("10.004") == Decimal("10.00")
+
+
+def test_amount_rounding_to_zero_rejected():
+    with pytest.raises(ValueError):
+        refund_amount("0.004")
+
+
+def test_smallest_amounts_round_half_up_to_one_cent():
+    assert refund_amount("0.005") == Decimal("0.01")
+    assert refund_amount("10.004") == Decimal("10.00")
