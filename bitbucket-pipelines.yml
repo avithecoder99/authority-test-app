@@ -1,0 +1,45 @@
+# Authority M8 (EV-04): the pipeline file for the Bitbucket Cloud test repository. Copy it to the
+# repository root as bitbucket-pipelines.yml; the owner commits it, never Authority's repository writer.
+#
+# Every pipeline runs the tests. On main it also builds the image, pushes it to GHCR tagged with the
+# commit, and states its digest on one line of the `build` step's log:
+#   AUTHORITY_IMAGE_DIGEST=sha256:<64 hex>
+# Bitbucket Downloads are not available on this plan (402), and pipeline artifacts have no public API,
+# so the step log carries the digest. The log belongs to exactly one step of one pipeline run for one
+# commit, which binds it more tightly than a repository-wide download would. Authority's Bitbucket
+# evidence source binds a deployment to the pipeline, its commit, this file's content hash, the
+# successful `build` step and that line.
+#
+# Repository variables (Repository settings > Pipelines > Repository variables):
+#   GHCR_USER    the GitHub account that owns the package, lowercase (not secured)
+#   GHCR_TOKEN   a GitHub personal access token (classic) with only the write:packages scope (secured)
+image: python:3.12-slim
+
+definitions:
+  steps:
+    - step: &test
+        name: test
+        script:
+          - pip install -r requirements.txt
+          - python -m pytest -q
+
+pipelines:
+  default:
+    - step: *test
+  branches:
+    main:
+      - step: *test
+      - step:
+          name: build
+          image: atlassian/default-image:4
+          services:
+            - docker
+          script:
+            - export IMAGE="ghcr.io/$GHCR_USER/authority-test-app-bitbucket"
+            - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            - docker build -t "$IMAGE:$BITBUCKET_COMMIT" .
+            - docker push "$IMAGE:$BITBUCKET_COMMIT"
+            - docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$BITBUCKET_COMMIT" | cut -d@ -f2 > image-digest.txt
+            - echo "AUTHORITY_IMAGE_DIGEST=$(cat image-digest.txt)"
+          artifacts:
+            - image-digest.txt

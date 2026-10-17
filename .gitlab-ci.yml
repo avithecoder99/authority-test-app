@@ -1,0 +1,37 @@
+# Authority M8 (EV-03): the CI file for the GitLab test project. Copy it to the project root as
+# .gitlab-ci.yml; the owner commits it, never Authority's repository writer.
+#
+# Every pipeline runs the tests. On the default branch it also builds the image, pushes it to this
+# project's container registry tagged with the commit, and states its digest in the job artifact
+# image-digest.txt ("sha256:<64 hex>"). Authority's GitLab evidence source binds a deployment to the
+# pipeline, its commit, this file's content hash, the `build` job, the artifact, and the digest the
+# container registry reports for the commit's tag.
+stages: [test, build]
+
+test:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install -r requirements.txt
+    - python -m pytest -q
+
+build:
+  stage: build
+  image: docker:27.3.1
+  services:
+    - docker:27.3.1-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker inspect --format '{{index .RepoDigests 0}}' "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" | cut -d@ -f2 > image-digest.txt
+    - cat image-digest.txt
+  artifacts:
+    name: image-digest
+    paths:
+      - image-digest.txt
+    expire_in: 30 days
